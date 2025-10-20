@@ -23,7 +23,7 @@ source .venv/bin/activate
 ```
 
 ```powershell windows
-.venv\Scripts\Activate.ps1
+.venv\scripts\Activate.ps1
 ```
 
 ### 3. Install dependencies
