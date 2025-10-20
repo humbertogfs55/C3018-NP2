@@ -1,0 +1,47 @@
+{
+  "best_model_name": "LogisticRegression",
+  "best_cv_f1": 1.0,
+  "results": {
+    "LogisticRegression": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "roc_auc": 1.0,
+      "cv_best_score_f1": 1.0,
+      "best_params": {
+        "clf__C": 0.01,
+        "clf__penalty": "l2"
+      }
+    },
+    "RandomForestClassifier": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "roc_auc": 1.0,
+      "cv_best_score_f1": 1.0,
+      "best_params": {
+        "clf__max_depth": null,
+        "clf__min_samples_leaf": 1,
+        "clf__n_estimators": 100
+      }
+    },
+    "HistGradientBoostingClassifier": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "roc_auc": 1.0,
+      "cv_best_score_f1": 1.0,
+      "best_params": {
+        "clf__learning_rate": 0.05,
+        "clf__max_depth": null,
+        "clf__max_iter": 100
+      }
+    }
+  },
+  "n_train": 400,
+  "n_test": 100,
+  "target": "radiant_win"
+}
