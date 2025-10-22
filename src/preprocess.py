@@ -2,11 +2,13 @@
 Preprocessing utilities for Projeto C318.
 
 Functions:
-- load_raw_matches: Read raw CSV (no header) and parse columns to typed DataFrame.
+- load_raw_matches: Read raw CSV (no header) and parse only essential columns to typed DataFrame.
 - validate_matches: Validate required fields and 5v5 team sizes; drop or flag invalid.
-- enrich_matches: Add derived features (timestamps, minutes, win flag, sorted teams, sizes).
+- enrich_matches: Add essential derived features (sorted teams).
 - save_clean_matches: Serialize list columns to JSON strings and write processed CSV.
 - process_pipeline: Run load → validate → enrich → save and return the DataFrame.
+
+Essential columns kept: radiant_win, radiant_team, dire_team
 """
 
 from __future__ import annotations
@@ -67,14 +69,10 @@ def _parse_hero_list(cell: str) -> Optional[List[int]]:
 
 # --- Core functions ---------------------------------------------------------
 def load_raw_matches(path: Path | str = RAW_PATH) -> pd.DataFrame:
-    """Read the raw matches CSV (no header) and return a typed DataFrame.
+    """Read the raw matches CSV (no header) and return a typed DataFrame with only essential columns.
 
     Columns parsed:
-    - match_id, match_seq_num: Int64
     - radiant_win: bool-like to {True, False, <NA>}
-    - start_time, duration, lobby_type, game_mode, cluster: Int64
-    - avg_rank_tier: numeric (float/Int64 with NaN)
-    - num_rank_tier: Int64
     - radiant_team, dire_team: list[int]
     """
     path = Path(path)
@@ -83,7 +81,7 @@ def load_raw_matches(path: Path | str = RAW_PATH) -> pd.DataFrame:
 
     # read without type coercion to preserve hero list strings
     df = pd.read_csv(path, header=None, dtype=str, keep_default_na=False)
-    # Expect 12 columns according to the spec
+    # Expect 12 columns according to the spec, but we only need columns 2, 10, 11
     expected_cols = [
         "match_id",
         "match_seq_num",
@@ -104,10 +102,9 @@ def load_raw_matches(path: Path | str = RAW_PATH) -> pd.DataFrame:
     df = df.iloc[:, : len(expected_cols)]
     df.columns = expected_cols
 
-    # Convert straightforward columns
-    # Use errors='coerce' to turn malformed values into NaN for later handling
-    df["match_id"] = pd.to_numeric(df["match_id"], errors="coerce").astype("Int64")
-    df["match_seq_num"] = pd.to_numeric(df["match_seq_num"], errors="coerce").astype("Int64")
+    # Only keep essential columns: radiant_win, radiant_team, dire_team
+    essential_cols = ["radiant_win", "radiant_team", "dire_team"]
+    df = df[essential_cols].copy()
 
     # radiant_win may be 'True'/'False' or '1'/'0'
     df["radiant_win"] = df["radiant_win"].map(
@@ -115,19 +112,11 @@ def load_raw_matches(path: Path | str = RAW_PATH) -> pd.DataFrame:
         (False if str(x).strip().lower() in {"false", "0", "f", "no", "n"} else pd.NA)
     )
 
-    df["start_time"] = pd.to_numeric(df["start_time"], errors="coerce").astype("Int64")
-    df["duration"] = pd.to_numeric(df["duration"], errors="coerce").astype("Int64")
-    df["lobby_type"] = pd.to_numeric(df["lobby_type"], errors="coerce").astype("Int64")
-    df["game_mode"] = pd.to_numeric(df["game_mode"], errors="coerce").astype("Int64")
-    df["avg_rank_tier"] = pd.to_numeric(df["avg_rank_tier"], errors="coerce")
-    df["num_rank_tier"] = pd.to_numeric(df["num_rank_tier"], errors="coerce").astype("Int64")
-    df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce").astype("Int64")
-
     # Parse hero lists
     df["radiant_team"] = df["radiant_team"].map(_parse_hero_list)
     df["dire_team"] = df["dire_team"].map(_parse_hero_list)
 
-    logger.info("Loaded %d rows from %s", len(df), path)
+    logger.info("Loaded %d rows from %s (essential columns only)", len(df), path)
     return df
 
 
@@ -135,16 +124,15 @@ def validate_matches(df: pd.DataFrame, drop_invalid: bool = True) -> pd.DataFram
     """Validate required fields and team sizes.
 
     Checks:
-    - Non-null: match_id, start_time, duration
+    - Non-null: radiant_win
     - Team lists present and length == 5 for both sides
 
     If drop_invalid is True, return only valid rows. Otherwise, add 'is_valid'.
     """
     checks = pd.Series(True, index=df.index)
 
-    # required numeric fields
-    for col in ["match_id", "start_time", "duration"]:
-        checks &= df[col].notna()
+    # required field
+    checks &= df["radiant_win"].notna()
 
     # team presence and expected size (5 heroes)
     def team_ok(lst):
@@ -173,29 +161,15 @@ def validate_matches(df: pd.DataFrame, drop_invalid: bool = True) -> pd.DataFram
 def enrich_matches(df: pd.DataFrame) -> pd.DataFrame:
     """Add derived features to the matches DataFrame.
 
-    Adds: start_datetime (UTC), duration_minutes, radiant_win_int,
-    radiant_team_sorted, dire_team_sorted, radiant_team_size, dire_team_size.
+    Adds: radiant_team_sorted, dire_team_sorted.
     """
     df = df.copy()
-
-    # convert epoch seconds -> pandas datetime (UTC)
-    df["start_datetime"] = pd.to_datetime(df["start_time"].astype("Int64"), unit="s", utc=True)
-
-    # duration minutes
-    df["duration_minutes"] = df["duration"].astype("float") / 60.0
-
-    # radiant_win int
-    df["radiant_win_int"] = df["radiant_win"].map(lambda x: 1 if x is True else (0 if x is False else pd.NA)).astype("Int64")
 
     # sorted hero lists for deterministic ordering
     df["radiant_team_sorted"] = df["radiant_team"].map(lambda lst: sorted(lst) if isinstance(lst, list) else lst)
     df["dire_team_sorted"] = df["dire_team"].map(lambda lst: sorted(lst) if isinstance(lst, list) else lst)
 
-    # simple team sizes (should be 5 for both after validation)
-    df["radiant_team_size"] = df["radiant_team"].map(lambda lst: len(lst) if isinstance(lst, list) else 0).astype("Int64")
-    df["dire_team_size"] = df["dire_team"].map(lambda lst: len(lst) if isinstance(lst, list) else 0).astype("Int64")
-
-    logger.info("Enriched dataframe with derived features")
+    logger.info("Enriched dataframe with essential derived features")
     return df
 
 
@@ -205,6 +179,8 @@ def save_clean_matches(df: pd.DataFrame, path: Path | str = PROCESSED_PATH) -> P
     path.parent.mkdir(parents=True, exist_ok=True)
     # use index=False for a clean CSV; convert lists to JSON-like strings for portability
     df_to_save = df.copy()
+
+    # Serialize sorted team columns if present
     def _to_serialized_string(value):
         if isinstance(value, (list, tuple)):
             return json.dumps(list(value))
@@ -214,9 +190,16 @@ def save_clean_matches(df: pd.DataFrame, path: Path | str = PROCESSED_PATH) -> P
         except Exception:
             return str(value)
 
-    for col in ["radiant_team", "dire_team", "radiant_team_sorted", "dire_team_sorted"]:
+    for col in ["radiant_team_sorted", "dire_team_sorted"]:
         if col in df_to_save.columns:
             df_to_save[col] = df_to_save[col].map(_to_serialized_string)
+
+    # IMPORTANT: remove the original unsorted team columns before saving
+    unsorted_cols = ["radiant_team", "dire_team"]
+    dropped = [c for c in unsorted_cols if c in df_to_save.columns]
+    if dropped:
+        df_to_save = df_to_save.drop(columns=dropped)
+        logger.debug("Dropped unsorted team columns from saved DataFrame: %s", dropped)
 
     df_to_save.to_csv(path, index=False)
     logger.info("Saved processed matches to %s (rows: %d)", path, len(df_to_save))
