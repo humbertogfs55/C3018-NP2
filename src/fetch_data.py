@@ -13,9 +13,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 API_BASE_URL = os.getenv("OPENDOTA_API_URL", "https://api.opendota.com/api")
-OUTPUT_PATH = os.getenv("DATA_PATH", "../data/raw/matches.csv")
+OUTPUT_PATH = os.getenv("DATA_PATH", "./data/raw/matches.csv")
 
-def fetch_public_matches(n_batches : int = 10, batch_size: int = 100) -> pd.DataFrame:
+def fetch_public_matches(n_batches : int = 5, batch_size: int = 1000) -> pd.DataFrame:
     """
     Screpe random public matches from OpenDota.
     
@@ -55,7 +55,7 @@ def save_matches(df: pd.DataFrame, path: str = OUTPUT_PATH):
 
 
 def main():
-    df = fetch_public_matches(n_batches=5)
+    df = fetch_public_matches(n_batches=100)
     save_matches(df)
 
 if __name__ == "__main__":
