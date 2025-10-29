@@ -12,6 +12,8 @@ Essential columns kept: radiant_win, radiant_team, dire_team
 """
 
 from __future__ import annotations
+from utils.heroes import hero_list_to_names
+
 
 import ast
 import logging
@@ -25,7 +27,8 @@ import json
 logger = logging.getLogger("c318.preprocess")
 if not logger.handlers:
     handler = logging.StreamHandler()
-    formatter = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s [%(name)s] %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
@@ -97,7 +100,8 @@ def load_raw_matches(path: Path | str = RAW_PATH) -> pd.DataFrame:
         "dire_team",
     ]
     if df.shape[1] < len(expected_cols):
-        raise ValueError(f"Expected at least {len(expected_cols)} columns, found {df.shape[1]}")
+        raise ValueError(
+            f"Expected at least {len(expected_cols)} columns, found {df.shape[1]}")
 
     df = df.iloc[:, : len(expected_cols)]
     df.columns = expected_cols
@@ -109,7 +113,8 @@ def load_raw_matches(path: Path | str = RAW_PATH) -> pd.DataFrame:
     # radiant_win may be 'True'/'False' or '1'/'0'
     df["radiant_win"] = df["radiant_win"].map(
         lambda x: True if str(x).strip().lower() in {"true", "1", "t", "yes", "y"} else
-        (False if str(x).strip().lower() in {"false", "0", "f", "no", "n"} else pd.NA)
+        (False if str(x).strip().lower() in {
+         "false", "0", "f", "no", "n"} else pd.NA)
     )
 
     # Parse hero lists
@@ -143,13 +148,15 @@ def validate_matches(df: pd.DataFrame, drop_invalid: bool = True) -> pd.DataFram
         except Exception:
             return False
 
-    team_ok_series = df["radiant_team"].map(team_ok) & df["dire_team"].map(team_ok)
+    team_ok_series = df["radiant_team"].map(
+        team_ok) & df["dire_team"].map(team_ok)
     checks &= team_ok_series
 
     if drop_invalid:
         bad_count = (~checks).sum()
         if bad_count > 0:
-            logger.info("Dropping %d invalid rows during validation", int(bad_count))
+            logger.info(
+                "Dropping %d invalid rows during validation", int(bad_count))
         df_clean = df.loc[checks].reset_index(drop=True)
         return df_clean
     else:
@@ -166,10 +173,16 @@ def enrich_matches(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     # sorted hero lists for deterministic ordering
-    df["radiant_team_sorted"] = df["radiant_team"].map(lambda lst: sorted(lst) if isinstance(lst, list) else lst)
-    df["dire_team_sorted"] = df["dire_team"].map(lambda lst: sorted(lst) if isinstance(lst, list) else lst)
+    df["radiant_team_sorted"] = df["radiant_team"].map(
+        lambda lst: sorted(lst) if isinstance(lst, list) else lst)
+    df["dire_team_sorted"] = df["dire_team"].map(
+        lambda lst: sorted(lst) if isinstance(lst, list) else lst)
 
     logger.info("Enriched dataframe with essential derived features")
+
+    df["radiant_heroes"] = df["radiant_team_sorted"].map(hero_list_to_names)
+    df["dire_heroes"] = df["dire_team_sorted"].map(hero_list_to_names)
+    
     return df
 
 
@@ -199,10 +212,12 @@ def save_clean_matches(df: pd.DataFrame, path: Path | str = PROCESSED_PATH) -> P
     dropped = [c for c in unsorted_cols if c in df_to_save.columns]
     if dropped:
         df_to_save = df_to_save.drop(columns=dropped)
-        logger.debug("Dropped unsorted team columns from saved DataFrame: %s", dropped)
+        logger.debug(
+            "Dropped unsorted team columns from saved DataFrame: %s", dropped)
 
     df_to_save.to_csv(path, index=False)
-    logger.info("Saved processed matches to %s (rows: %d)", path, len(df_to_save))
+    logger.info("Saved processed matches to %s (rows: %d)",
+                path, len(df_to_save))
     return path
 
 
@@ -228,7 +243,8 @@ if __name__ == "__main__":
     logger.info("Running preprocessing pipeline (raw -> processed)")
     try:
         processed_df = process_pipeline()
-        logger.info("Pipeline finished successfully. Processed rows: %d", len(processed_df))
+        logger.info(
+            "Pipeline finished successfully. Processed rows: %d", len(processed_df))
     except Exception as e:
         logger.exception("Preprocessing pipeline failed: %s", e)
         raise
