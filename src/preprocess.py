@@ -13,7 +13,7 @@ Essential columns kept: radiant_win, radiant_team, dire_team
 
 from __future__ import annotations
 from src.utils.heroes import hero_list_to_names
-
+from src.feature_selection import remove_highly_correlated_features
 
 import ast
 import logging
@@ -235,6 +235,11 @@ def process_pipeline(
     df = load_raw_matches(raw_path)
     df = validate_matches(df, drop_invalid=drop_invalid)
     df = enrich_matches(df)
+    df, dropped_cols = remove_highly_correlated_features(df, threshold=0.8)
+    
+    if dropped_cols:
+        logger.info("Removed highly correlated columns: %s", dropped_cols)
+    
     save_clean_matches(df, out_path)
     return df
 
