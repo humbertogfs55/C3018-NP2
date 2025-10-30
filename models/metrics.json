@@ -28,12 +28,12 @@
       }
     },
     "HistGradientBoostingClassifier": {
-      "accuracy": 0.9989690721649485,
-      "precision": 0.9984038308060654,
+      "accuracy": 1.0,
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.9992012779552716,
-      "roc_auc": 0.9985486211901305,
-      "cv_best_score_f1": 0.9973169266483701,
+      "f1": 1.0,
+      "roc_auc": 1.0,
+      "cv_best_score_f1": 1.0,
       "best_params": {
         "clf__learning_rate": 0.05,
         "clf__max_depth": null,
