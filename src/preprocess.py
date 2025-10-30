@@ -12,7 +12,7 @@ Essential columns kept: radiant_win, radiant_team, dire_team
 """
 
 from __future__ import annotations
-from utils.heroes import hero_list_to_names
+from src.utils.heroes import hero_list_to_names
 
 
 import ast
@@ -22,6 +22,7 @@ from typing import List, Optional
 
 import pandas as pd
 import json
+
 
 # Configure module logger (caller can reconfigure)
 logger = logging.getLogger("c318.preprocess")
@@ -36,7 +37,7 @@ logger.setLevel(logging.INFO)
 
 # Default paths (customize via function args)
 RAW_PATH = Path("data/raw/matches.csv")
-PROCESSED_PATH = Path("data/processed/matches_clean.csv")
+PROCESSED_PATH = Path("data/processed/matches_clean_heros.csv")
 
 
 # --- Helpers -----------------------------------------------------------------
