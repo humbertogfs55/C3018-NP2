@@ -26,6 +26,7 @@ import json
 
 # Configure module logger (caller can reconfigure)
 logger = logging.getLogger("c318.preprocess")
+logger.propagate = False 
 if not logger.handlers:
     handler = logging.StreamHandler()
     formatter = logging.Formatter(
@@ -221,6 +222,17 @@ def save_clean_matches(df: pd.DataFrame, path: Path | str = PROCESSED_PATH) -> P
                 path, len(df_to_save))
     return path
 
+def log_radiant_win_distribution(df):
+    value_counts = df["radiant_win"].value_counts(dropna=False)
+    total = len(df)
+    logger.info("="*4 + "Radiant_win distribution" + "="*4)
+
+    for val, count in value_counts.items():
+        pct = (count / total) * 100
+        logger.info(f"{val}: {count} ({pct:.2f}%)")
+        
+    logger.info("="*34)
+    return df
 
 # --- Convenience CLI --------------------------------------------------------
 def process_pipeline(
@@ -236,11 +248,13 @@ def process_pipeline(
     df = validate_matches(df, drop_invalid=drop_invalid)
     df = enrich_matches(df)
     df, dropped_cols = remove_highly_correlated_features(df, threshold=0.8)
-    
+    df = log_radiant_win_distribution(df)
+
     if dropped_cols:
         logger.info("Removed highly correlated columns: %s", dropped_cols)
     
     save_clean_matches(df, out_path)
+           
     return df
 
 
