@@ -37,7 +37,7 @@ logger.setLevel(logging.INFO)
 
 # Default paths (customize via function args)
 RAW_PATH = Path("data/raw/matches.csv")
-PROCESSED_PATH = Path("data/processed/matches_clean_heros.csv")
+PROCESSED_PATH = Path("data/processed/matches_clean.csv")
 
 
 # --- Helpers -----------------------------------------------------------------
