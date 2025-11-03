@@ -1,1 +1,5 @@
 .env
+GEMINI.MD
+__pycache__/
+.venv/
+

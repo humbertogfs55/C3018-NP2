@@ -23,7 +23,7 @@ import json
 import os
 from pathlib import Path
 from typing import Tuple, List, Dict
-
+import ast
 import joblib
 import numpy as np
 import pandas as pd
@@ -31,11 +31,13 @@ from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score)
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score, roc_auc_score)
 from sklearn.model_selection import GridSearchCV, train_test_split, StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+os.environ["LOKY_MAX_CPU_COUNT"] = "4"
 # -------------------------
 # Helpers
 # -------------------------
@@ -46,12 +48,36 @@ def load_data(path: str) -> pd.DataFrame:
         raise ValueError(f"Loaded dataframe is empty: {path}")
     return df
 
+
+def safe_eval_list(val):
+    if isinstance(val, str):
+        try:
+            parsed = ast.literal_eval(val)
+            if isinstance(parsed, list):
+                return parsed
+        except Exception:
+            pass
+    return val
+
+
+def expand_hero_lists(df: pd.DataFrame) -> pd.DataFrame:
+    for side in ["radiant", "dire"]:
+        col = f"{side}_team_sorted"
+        if col in df.columns:
+            df[[f"{col}_{i}" for i in range(5)]] = pd.DataFrame(
+                df[col].tolist(), index=df.index)
+            df = df.drop(columns=[col])
+    return df
+
+
 def split_X_y(df: pd.DataFrame, target: str) -> Tuple[pd.DataFrame, pd.Series]:
     if target not in df.columns:
-        raise KeyError(f"Target column '{target}' not found in dataframe columns.")
+        raise KeyError(
+            f"Target column '{target}' not found in dataframe columns.")
     X = df.drop(columns=[target])
     y = df[target].astype(int)
     return X, y
+
 
 def choose_feature_types(X: pd.DataFrame) -> Tuple[List[str], List[str]]:
     """
@@ -59,12 +85,14 @@ def choose_feature_types(X: pd.DataFrame) -> Tuple[List[str], List[str]]:
     Adjust if your dataset has special columns (IDs, timestamps) to drop.
     """
     # Drop clearly-identifiers if present
-    id_cols = [c for c in ["match_id", "match_seq_num", "start_time"] if c in X.columns]
+    id_cols = [c for c in ["match_id", "match_seq_num",
+                           "start_time"] if c in X.columns]
     if id_cols:
         X = X.drop(columns=id_cols)
     numeric_cols = X.select_dtypes(include=['number']).columns.tolist()
     categorical_cols = X.select_dtypes(exclude=['number']).columns.tolist()
     return numeric_cols, categorical_cols
+
 
 def build_preprocessor(numeric_cols: List[str], categorical_cols: List[str]) -> ColumnTransformer:
     numeric_pipeline = Pipeline([
@@ -80,8 +108,10 @@ def build_preprocessor(numeric_cols: List[str], categorical_cols: List[str]) -> 
         transformers.append(("num", numeric_pipeline, numeric_cols))
     if categorical_cols:
         transformers.append(("cat", categorical_pipeline, categorical_cols))
-    preprocessor = ColumnTransformer(transformers, remainder="drop", verbose_feature_names_out=False)
+    preprocessor = ColumnTransformer(
+        transformers, remainder="drop", verbose_feature_names_out=False)
     return preprocessor
+
 
 def make_model_grid(random_state: int = 42) -> Tuple[List[Pipeline], List[Dict]]:
     """
@@ -89,7 +119,8 @@ def make_model_grid(random_state: int = 42) -> Tuple[List[Pipeline], List[Dict]]
     We'll construct final pipelines later with the preprocessor bound.
     """
     # Estimators
-    lr = LogisticRegression(max_iter=500, solver="liblinear", random_state=random_state)
+    lr = LogisticRegression(
+        max_iter=500, solver="liblinear", random_state=random_state)
     rf = RandomForestClassifier(n_jobs=-1, random_state=random_state)
     hgb = HistGradientBoostingClassifier(random_state=random_state)
 
@@ -110,6 +141,7 @@ def make_model_grid(random_state: int = 42) -> Tuple[List[Pipeline], List[Dict]]
     }
 
     return [(lr, lr_grid), (rf, rf_grid), (hgb, hgb_grid)]
+
 
 def evaluate_model(pipeline, X_test: pd.DataFrame, y_test: pd.Series) -> Dict:
     preds = pipeline.predict(X_test)
@@ -133,7 +165,6 @@ def evaluate_model(pipeline, X_test: pd.DataFrame, y_test: pd.Series) -> Dict:
 # -------------------------
 # Main training routine
 # -------------------------
-
 def train_and_save(
     input_csv: str,
     out_dir: str,
@@ -146,6 +177,14 @@ def train_and_save(
     os.makedirs(out_dir, exist_ok=True)
     df = load_data(input_csv)
 
+    # Convert stringified lists to py lists
+    for col in ["radiant_team_sorted", "dire_team_sorted"]:
+        if col in df.columns:
+            df[col] = df[col].map(safe_eval_list)
+
+    # Expand hero lists into separate columns
+    df = expand_hero_lists(df)
+    
     X, y = split_X_y(df, target)
 
     # Identify features; remove ids/timestamps if present
@@ -167,7 +206,8 @@ def train_and_save(
 
     model_candidates = make_model_grid(random_state=random_state)
 
-    cv = StratifiedKFold(n_splits=cv_splits, shuffle=True, random_state=random_state)
+    cv = StratifiedKFold(n_splits=cv_splits, shuffle=True,
+                         random_state=random_state)
 
     for estimator, grid in model_candidates:
         name = estimator.__class__.__name__
@@ -236,6 +276,7 @@ def train_and_save(
 # CLI
 # -------------------------
 
+
 def parse_args():
     p = argparse.ArgumentParser(description="Train a model for Projeto_C318")
     p.add_argument("--input", "-i", type=str, default="./data/processed/matches_clean.csv",
@@ -244,10 +285,14 @@ def parse_args():
                    help="Output directory to save model and metrics (default: ./models/)")
     p.add_argument("--target", "-t", type=str, default="radiant_win",
                    help="Target column name (default: radiant_win)")
-    p.add_argument("--test-size", type=float, default=0.2, help="Test split fraction (default: 0.2)")
-    p.add_argument("--random-state", type=int, default=42, help="Random seed (default: 42)")
-    p.add_argument("--cv-splits", type=int, default=5, help="Number of CV splits for GridSearch (default: 5)")
+    p.add_argument("--test-size", type=float, default=0.2,
+                   help="Test split fraction (default: 0.2)")
+    p.add_argument("--random-state", type=int, default=42,
+                   help="Random seed (default: 42)")
+    p.add_argument("--cv-splits", type=int, default=5,
+                   help="Number of CV splits for GridSearch (default: 5)")
     return p.parse_args()
+
 
 def main():
     args = parse_args()
@@ -260,6 +305,7 @@ def main():
         random_state=args.random_state,
         cv_splits=args.cv_splits
     )
+
 
 if __name__ == "__main__":
     main()
