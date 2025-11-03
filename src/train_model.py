@@ -162,6 +162,24 @@ def evaluate_model(pipeline, X_test: pd.DataFrame, y_test: pd.Series) -> Dict:
         metrics["roc_auc"] = None
     return metrics
 
+def choose_stratify(y: pd.Series, test_size: float):
+    """
+    Decide whether to use stratified splitting based on class distribution.
+    If any class has too few samples to be represented in both train and test sets,
+    stratification will not be used.
+    """
+    vc = y.value_counts(dropna=False)
+    if len(vc) < 2:
+        print("[split] Only one class present; disabling stratify.")
+        return None
+
+    min_count = int(vc.min())
+    if (min_count * test_size < 1) or (min_count * (1 - test_size) < 1):
+        print(f"[split] Too few samples in a class (min={min_count}) for test_size={test_size}; disabling stratify.")
+        return None
+
+    return y
+
 # -------------------------
 # Main training routine
 # -------------------------
@@ -195,8 +213,10 @@ def train_and_save(
     preprocessor = build_preprocessor(numeric_cols, categorical_cols)
 
     # Train/test split
+    stratifier = choose_stratify(y, test_size)
+
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, stratify=y, random_state=random_state
+        X, y, test_size=test_size, stratify=stratifier, random_state=random_state
     )
 
     results = {}
