@@ -1,47 +1,47 @@
 {
-  "best_model_name": "LogisticRegression",
-  "best_cv_f1": 1.0,
+  "best_model_name": "RandomForestClassifier",
+  "best_cv_f1": 0.7760992519613209,
   "results": {
     "LogisticRegression": {
-      "accuracy": 0.6682564917859035,
-      "precision": 0.6875369167158889,
-      "recall": 0.9230769230769231,
-      "f1": 0.7880839539607312,
-      "roc_auc": 0.5019660850331777,
-      "cv_best_score_f1": 1.0,
+      "accuracy": 0.6363636363636364,
+      "precision": 0.6666666666666666,
+      "recall": 0.8571428571428571,
+      "f1": 0.75,
+      "roc_auc": 0.5625,
+      "cv_best_score_f1": 0.6581939799331102,
       "best_params": {
-        "clf__C": 1.0,
+        "clf__C": 5.0,
         "clf__penalty": "l2"
       }
     },
     "RandomForestClassifier": {
-      "accuracy": 0.6846846846846847,
-      "precision": 0.6794181034482759,
+      "accuracy": 0.6818181818181818,
+      "precision": 0.6666666666666666,
       "recall": 1.0,
-      "f1": 0.8091113249919795,
-      "roc_auc": 0.7731014991398377,
-      "cv_best_score_f1": 1.0,
+      "f1": 0.8,
+      "roc_auc": 0.625,
+      "cv_best_score_f1": 0.7760992519613209,
       "best_params": {
-        "clf__max_depth": null,
+        "clf__max_depth": 10,
         "clf__min_samples_leaf": 1,
-        "clf__n_estimators": 100
+        "clf__n_estimators": 200
       }
     },
     "HistGradientBoostingClassifier": {
-      "accuracy": 0.5209326974032856,
-      "precision": 0.6493723849372385,
-      "recall": 0.6153846153846154,
-      "f1": 0.6319218241042345,
-      "roc_auc": 0.46132310428611606,
-      "cv_best_score_f1": 1.0,
+      "accuracy": 0.6363636363636364,
+      "precision": 0.6875,
+      "recall": 0.7857142857142857,
+      "f1": 0.7333333333333333,
+      "roc_auc": 0.6071428571428571,
+      "cv_best_score_f1": 0.7234690591212329,
       "best_params": {
         "clf__learning_rate": 0.05,
         "clf__max_depth": null,
-        "clf__max_iter": 100
+        "clf__max_iter": 200
       }
     }
   },
-  "n_train": 7813,
-  "n_test": 1887,
+  "n_train": 88,
+  "n_test": 22,
   "target": "radiant_win"
 }
