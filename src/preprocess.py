@@ -187,6 +187,17 @@ def enrich_matches(df: pd.DataFrame) -> pd.DataFrame:
     
     return df
 
+def order_by_matchup(df: pd.DataFrame) -> pd.DataFrame:
+    """Order the DataFrame by (radiant_team_sorted, dire_team_sorted)."""
+    def _list_to_str(lst):
+        return ",".join(map(str, lst)) if isinstance(lst, list) else ""
+    
+    # temporary keys for sorting
+    r_key = df["radiant_team_sorted"].map(_list_to_str)
+    d_key = df["dire_team_sorted"].map(_list_to_str)
+
+    # order by (radiant, dire)
+    return df.assign(_r=r_key, _d=d_key).sort_values(["_r", "_d"]).drop(columns=["_r", "_d"])
 
 def save_clean_matches(df: pd.DataFrame, path: Path | str = PROCESSED_PATH) -> Path:
     """Write the processed DataFrame to CSV, serializing list columns as JSON strings."""
@@ -248,6 +259,7 @@ def process_pipeline(
     df = validate_matches(df, drop_invalid=drop_invalid)
     df = enrich_matches(df)
     df, dropped_cols = remove_highly_correlated_features(df, threshold=0.8)
+    df = order_by_matchup(df)    
     df = log_radiant_win_distribution(df)
 
     if dropped_cols:
