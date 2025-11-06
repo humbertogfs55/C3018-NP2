@@ -25,14 +25,19 @@ This file outlines the tasks for the development of the Machine Learning project
 - [x] add a helper function to convert hero ints to hero names for data visualization
 - [ ] create a final notebook for project visualization, think of a better name
 
-- [x] ALTERAR  a forma como a tupla de listas entra pro X no train model de string para lista de int. 
+- [x] Change how the tuple of hero lists enters X in train_model.py — from string to list of integers
 
-- [x] teste de colinearidade 
-- [ ] salvar a seed de treinamento (MLFLOW )
-- [ ] alterar o treshhold 
-- [ ] contar quantos true/false no csv limpo. (pra verificar desbalance)
-- [ ] verificar variacoes de stratify = y (linha 160 train model)
-- [ ] Explorar os valores dos herois, pensar em pesos/ outras possibilidades
+- [x] Perform collinearity test
+
+- [] Save training seed (MLflow integration)
+
+- [] Adjust decision threshold
+
+- [x] Count number of True/False values in the cleaned CSV (to check class imbalance)
+
+- [x] Test variations of stratify=y (line 160 in train_model.py)
+
+- [] Explore hero value features — consider weights or other representations
 
 
 
