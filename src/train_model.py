@@ -33,7 +33,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, roc_auc_score)
-from sklearn.model_selection import GridSearchCV, train_test_split, StratifiedKFold
+from sklearn.model_selection import GridSearchCV, train_test_split, StratifiedKFold, GroupShuffleSplit
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
@@ -162,24 +162,6 @@ def evaluate_model(pipeline, X_test: pd.DataFrame, y_test: pd.Series) -> Dict:
         metrics["roc_auc"] = None
     return metrics
 
-def choose_stratify(y: pd.Series, test_size: float):
-    """
-    Decide whether to use stratified splitting based on class distribution.
-    If any class has too few samples to be represented in both train and test sets,
-    stratification will not be used.
-    """
-    vc = y.value_counts(dropna=False)
-    if len(vc) < 2:
-        print("[split] Only one class present; disabling stratify.")
-        return None
-
-    min_count = int(vc.min())
-    if (min_count * test_size < 1) or (min_count * (1 - test_size) < 1):
-        print(f"[split] Too few samples in a class (min={min_count}) for test_size={test_size}; disabling stratify.")
-        return None
-
-    return y
-
 # -------------------------
 # Main training routine
 # -------------------------
@@ -203,7 +185,26 @@ def train_and_save(
     # Expand hero lists into separate columns
     df = expand_hero_lists(df)
     
+    def _list_to_str(lst): 
+        return ",".join(map(str, lst)) if isinstance(lst, list) else ""
+
+    # Create groups for GroupShuffleSplit based on matchups
+    if "radiant_team_sorted" in df.columns and "dire_team_sorted" in df.columns:
+        r_key = df["radiant_team_sorted"].map(_list_to_str)
+        d_key = df["dire_team_sorted"].map(_list_to_str)
+        groups = (r_key + "|" + d_key).values
+    else:
+        # Fallback: use hero columns if matchup columns are not present
+        sig_cols = [f"radiant_team_sorted_{i}" for i in range(5)] + [f"dire_team_sorted_{i}" for i in range(5)]
+        groups = df[sig_cols].astype(str).agg(",".join, axis=1).values
+
     X, y = split_X_y(df, target)
+
+    # Use GroupShuffleSplit to avoid leakage between train/test by matchup
+    gss = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=random_state)
+    train_idx, test_idx = next(gss.split(X, y, groups=groups))
+    X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+    y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
 
     # Identify features; remove ids/timestamps if present
     numeric_cols, categorical_cols = choose_feature_types(X)
@@ -211,13 +212,6 @@ def train_and_save(
     # Important: if choose_feature_types dropped ID columns internally, re-assign X accordingly
     # (we rely on ColumnTransformer mapping by names below)
     preprocessor = build_preprocessor(numeric_cols, categorical_cols)
-
-    # Train/test split
-    stratifier = choose_stratify(y, test_size)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, stratify=stratifier, random_state=random_state
-    )
 
     results = {}
     best_overall_score = -np.inf
