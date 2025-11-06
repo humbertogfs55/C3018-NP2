@@ -120,8 +120,8 @@ def make_model_grid(random_state: int = 42) -> Tuple[List[Pipeline], List[Dict]]
     """
     # Estimators
     lr = LogisticRegression(
-        max_iter=500, solver="liblinear", random_state=random_state)
-    rf = RandomForestClassifier(n_jobs=-1, random_state=random_state)
+        max_iter=500, solver="liblinear", random_state=random_state, class_weight="balanced")
+    rf = RandomForestClassifier(n_jobs=-1, random_state=random_state, class_weight="balanced")
     hgb = HistGradientBoostingClassifier(random_state=random_state)
 
     # Basic parameter grids

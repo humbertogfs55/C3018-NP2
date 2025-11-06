@@ -245,6 +245,22 @@ def log_radiant_win_distribution(df):
     logger.info("="*34)
     return df
 
+def drop_duplicate_matches(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop duplicate matches based on sorted team compositions."""
+    before_count = len(df)
+    df["radiant_team_sorted"] = df["radiant_team_sorted"].apply(tuple)
+    df["dire_team_sorted"] = df["dire_team_sorted"].apply(tuple)
+
+    df_clean = df.drop_duplicates(subset=["radiant_team_sorted", "dire_team_sorted"]).reset_index(drop=True)
+    
+    after_count = len(df_clean)
+    dropped = before_count - after_count
+    if dropped > 0:
+        logger.info("Dropped %d duplicate matches based on team compositions", dropped)
+
+    return df_clean
+
+    
 # --- Convenience CLI --------------------------------------------------------
 def process_pipeline(
     raw_path: Optional[Path | str] = None,
@@ -260,6 +276,7 @@ def process_pipeline(
     df = enrich_matches(df)
     df, dropped_cols = remove_highly_correlated_features(df, threshold=0.8)
     df = order_by_matchup(df)    
+    df = drop_duplicate_matches(df)
     df = log_radiant_win_distribution(df)
 
     if dropped_cols:
