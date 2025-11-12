@@ -36,6 +36,9 @@ from sklearn.metrics import (
 from sklearn.model_selection import GridSearchCV, train_test_split, StratifiedKFold, GroupShuffleSplit
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+import mlflow
+import mlflow.sklearn
+
 
 os.environ["LOKY_MAX_CPU_COUNT"] = "4"
 # -------------------------
@@ -208,7 +211,6 @@ def train_and_save(
 
     # Identify features; remove ids/timestamps if present
     numeric_cols, categorical_cols = choose_feature_types(X)
-
     # Important: if choose_feature_types dropped ID columns internally, re-assign X accordingly
     # (we rely on ColumnTransformer mapping by names below)
     preprocessor = build_preprocessor(numeric_cols, categorical_cols)
@@ -219,53 +221,74 @@ def train_and_save(
     best_name = None
 
     model_candidates = make_model_grid(random_state=random_state)
+    cv = StratifiedKFold(n_splits=cv_splits, shuffle=True, random_state=random_state)
 
-    cv = StratifiedKFold(n_splits=cv_splits, shuffle=True,
-                         random_state=random_state)
+    # -------------------------------
+    # MLflow tracking
+    # -------------------------------
+    mlflow.set_experiment("Projeto_C318")
 
-    for estimator, grid in model_candidates:
-        name = estimator.__class__.__name__
-        print(f"\nTraining candidate estimator: {name}")
+    with mlflow.start_run(run_name="train_model_run"):
+        # Log main parameters
+        mlflow.log_param("random_state", random_state)
+        mlflow.log_param("test_size", test_size)
+        mlflow.log_param("cv_splits", cv_splits)
+        mlflow.log_param("target", target)
 
-        pipeline = Pipeline([
-            ("preprocessor", preprocessor),
-            ("clf", estimator),
-        ])
+        for estimator, grid in model_candidates:
+            name = estimator.__class__.__name__
+            print(f"\nTraining candidate estimator: {name}")
 
-        # Grid search
-        gs = GridSearchCV(
-            estimator=pipeline,
-            param_grid=grid,
-            cv=cv,
-            scoring="f1",
-            n_jobs=n_jobs,
-            verbose=1,
-            refit=True,
-        )
+            pipeline = Pipeline([
+                ("preprocessor", preprocessor),
+                ("clf", estimator),
+            ])
 
-        gs.fit(X_train, y_train)
+            # Grid search
+            gs = GridSearchCV(
+                estimator=pipeline,
+                param_grid=grid,
+                cv=cv,
+                scoring="f1",
+                n_jobs=n_jobs,
+                verbose=1,
+                refit=True,
+            )
 
-        print(f"Best params for {name}: {gs.best_params_}")
-        print(f"Best CV score (f1) for {name}: {gs.best_score_:.4f}")
+            gs.fit(X_train, y_train)
 
-        # Evaluate on test
-        metrics = evaluate_model(gs.best_estimator_, X_test, y_test)
-        metrics.update({
-            "cv_best_score_f1": float(gs.best_score_),
-            "best_params": gs.best_params_,
-        })
+            # Evaluate on test
+            metrics = evaluate_model(gs.best_estimator_, X_test, y_test)
+            mlflow.log_metrics(metrics)
 
-        results[name] = metrics
+            # Log model-specific params & metrics
+            mlflow.log_param(f"{name}_best_params", gs.best_params_)
+            mlflow.log_metric(f"{name}_cv_f1", gs.best_score_)
+
+            # Save model to MLflow
+            mlflow.sklearn.log_model(gs.best_estimator_, f"model_{name}")
+
+            print(f"Best params for {name}: {gs.best_params_}")
+            print(f"Best CV score (f1) for {name}: {gs.best_score_:.4f}")
+
+           # Evaluate on test
+            metrics.update({
+                "cv_best_score_f1": float(gs.best_score_),
+                "best_params": gs.best_params_,
+            })
+
+            results[name] = metrics
 
         # Track best by CV F1 (you can change this criterion)
-        if gs.best_score_ > best_overall_score:
-            best_overall_score = gs.best_score_
-            best_overall = gs.best_estimator_
-            best_name = name
+            if gs.best_score_ > best_overall_score:
+                best_overall_score = gs.best_score_
+                best_overall = gs.best_estimator_
+                best_name = name
 
     # Save best pipeline
     if best_overall is None:
         raise RuntimeError("No model was trained successfully.")
+
     model_path = Path(out_dir) / "best_pipeline.joblib"
     joblib.dump(best_overall, model_path)
     print(f"Saved best pipeline ({best_name}) to {model_path}")
@@ -280,8 +303,10 @@ def train_and_save(
         "n_test": int(len(y_test)),
         "target": target,
     }
+
     with open(metrics_path, "w", encoding="utf8") as f:
         json.dump(summary, f, indent=2)
+
     print(f"Saved metrics summary to {metrics_path}")
 
     return model_path, metrics_path
