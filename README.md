@@ -109,7 +109,7 @@ Após instalar as dependências, você pode:
 
 - Treinar o modelo:
    ```bash
-   python src/train_model.py
+   python -m src.train_model
    ```
 
 - Gerar previsões:
@@ -118,6 +118,32 @@ Após instalar as dependências, você pode:
    ```
 
 > 📁 Os dados processados e modelos treinados são salvos automaticamente em data/processed/ e models/.
+
+</br>
+
+## 📁 Geração da pasta mlruns (MLflow)
+
+Ao rodar o comando acima, o MLflow cria automaticamente uma pasta chamada `mlruns/`, onde ficam armazenados:
+
+- Métricas dos modelos
+- Parâmetros de treino
+- Artefatos (modelos, gráficos, etc.)
+- Histórico completo de experimentos
+
+### ▶️ Visualizar os experimentos no MLflow UI
+
+Para abrir a interface visual do MLflow, execute:
+   ```bash
+   mlflow ui
+   ```
+
+O MLflow iniciará um servidor local normalmente em:
+
+👉 Abra o MLflow UI clicando **[aqui](http://127.0.0.1:5000)**.
+
+Assim você poderá navegar pelos experimentos e runs, por exemplo:
+
+🔗 [Abrir exemplo de experimento no MLflow](http://127.0.0.1:5000/#/experiments/403649128202140705/runs/dbd051c42dff4a68a41053e9fe1885a5)
 
 </br>
 
